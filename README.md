@@ -1,7 +1,7 @@
 # CPT411 Assignment 1 – DFA Interface (React + FastAPI)
 
 This folder provides a web interface for running the DFA recognizer from:
-`..\CPT411_Assignment1\closed_class_dfa.py`
+`..\closed_class_dfa.py`
 
 You can paste text or upload a `.txt` file, then view:
 - Total tokens
