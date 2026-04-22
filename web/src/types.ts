@@ -17,6 +17,16 @@ export type Highlight = {
   trace?: TraceStep[]
 }
 
+export type SelectedToken = {
+  original: string
+  lower: string
+  start: number
+  end: number
+  categories: string[]
+  accepted: boolean
+  trace: TraceStep[]
+}
+
 export type TraceStep = {
   ch: string
   from: number

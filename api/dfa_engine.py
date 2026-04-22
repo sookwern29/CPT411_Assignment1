@@ -41,6 +41,30 @@ _MOD = _load_closed_class_module()
 _DFA = _MOD.TrieDFA(list(_MOD.WORD_MAP.keys()))
 
 
+def trace_word(word: str) -> Dict[str, Any]:
+    """
+    Return DFA trace details for a single token.
+
+    This is used by the UI to show a trace even for rejected words.
+    """
+    if word is None:
+        word = ""
+    original = str(word)
+    lower = original.lower()
+    accepted, _final = _DFA.run(lower)
+    categories = list(_MOD.WORD_MAP.get(lower, []))
+    steps = _DFA.trace(lower)
+    trace = [{"ch": ch, "from": frm, "to": to, "trap": bool(trap)} for (ch, frm, to, trap) in steps]
+    return {
+        "original": original,
+        "lower": lower,
+        "accepted": bool(accepted),
+        "categories": categories,
+        "steps": len(trace),
+        "trace": trace,
+    }
+
+
 def _word_frequency_from_findings(findings: List[Tuple]) -> Dict[str, Dict[str, Any]]:
     freq: Dict[str, Dict[str, Any]] = {}
     for original, _start, _end, cats, _acc in findings:

@@ -419,7 +419,20 @@ code,
   outline-offset: 2px;
 }
 
+.hl--plain {
+  border: none;
+  padding: 0;
+  /* border-radius: 0; */
+  background: transparent;
+  color: rgba(15, 23, 42, 0.92);
+}
+
+.hl--plain:hover {
+  background: rgba(2, 6, 23, 0.04);
+}
+
 .hl--selected {
+  border: none;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
 }
 
@@ -516,6 +529,74 @@ code,
 
 .modalSub {
   margin-top: 4px;
+}
+
+.traceGraphWrap {
+  margin: 12px 0;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(255, 255, 255, 0.7));
+  padding: 12px;
+}
+
+.traceGraphHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.traceGraphTitle {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1px;
+}
+
+.traceGraph {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 8px;
+  overflow: auto;
+}
+
+.traceGraph svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.traceLegend {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.legendPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.legendPill--blue {
+  border-color: rgba(37, 99, 235, 0.25);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.legendPill--green {
+  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.legendPill--red {
+  border-color: rgba(225, 29, 72, 0.25);
+  background: rgba(225, 29, 72, 0.08);
 }
 
 .actionBar {

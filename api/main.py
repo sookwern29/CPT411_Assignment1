@@ -6,7 +6,7 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from dfa_engine import analyze_text
+from dfa_engine import analyze_text, trace_word
 
 
 class AnalyzeRequest(BaseModel):
@@ -54,4 +54,11 @@ async def analyze(
         raise HTTPException(status_code=400, detail='Provide JSON body {"text": "..."} or upload a .txt file.')
 
     return analyze_text(text)
+
+
+@app.get("/trace")
+def trace(word: str) -> Any:
+    if not isinstance(word, str) or word.strip() == "":
+        raise HTTPException(status_code=400, detail='Provide query param ?word=...')
+    return trace_word(word)
 

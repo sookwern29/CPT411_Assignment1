@@ -5,7 +5,7 @@ type Props = {
   highlights: Highlight[]
   colors: CategoryColorMap
   selected?: Highlight | null
-  onSelectHighlight?: (h: Highlight) => void
+  onSelectToken?: (t: { original: string; lower: string; start: number; end: number; highlight?: Highlight }) => void
 }
 
 function gradientFor(categories: string[], colors: CategoryColorMap): string {
@@ -23,36 +23,62 @@ function gradientFor(categories: string[], colors: CategoryColorMap): string {
   return `linear-gradient(90deg, ${stops})`
 }
 
-export function HighlightedText({ text, highlights, colors, selected = null, onSelectHighlight }: Props) {
+export function HighlightedText({ text, highlights, colors, selected = null, onSelectToken }: Props) {
   if (!text) return <div className="muted">No text.</div>
 
-  const parts: Array<{ key: string; value: string; hl?: Highlight }> = []
-  let prev = 0
-  for (const h of highlights ?? []) {
-    if (h.start > prev) {
-      parts.push({ key: `t:${prev}-${h.start}`, value: text.slice(prev, h.start) })
+  const hlBySpan = new Map<string, Highlight>()
+  for (const h of highlights ?? []) hlBySpan.set(`${h.start}:${h.end}`, h)
+
+  type Part =
+    | { key: string; kind: 'text'; value: string }
+    | { key: string; kind: 'word'; value: string; start: number; end: number; highlight?: Highlight }
+
+  const parts: Part[] = []
+  const re = /[A-Za-z]+/g
+  let i = 0
+  while (i < text.length) {
+    re.lastIndex = i
+    const m = re.exec(text)
+    if (!m || m.index > i) {
+      const end = m ? m.index : text.length
+      parts.push({ key: `t:${i}-${end}`, kind: 'text', value: text.slice(i, end) })
+      i = end
+      continue
     }
-    parts.push({ key: `h:${h.start}-${h.end}`, value: text.slice(h.start, h.end), hl: h })
-    prev = h.end
+
+    const start = m.index
+    const end = start + m[0].length
+    const h = hlBySpan.get(`${start}:${end}`)
+    parts.push({ key: `w:${start}-${end}`, kind: 'word', value: m[0], start, end, highlight: h })
+    i = end
   }
-  if (prev < text.length) parts.push({ key: `t:${prev}-${text.length}`, value: text.slice(prev) })
 
   return (
     <div className="highlightWrap">
       <div className="highlightText" aria-label="Highlighted input text">
         {parts.map((p) => {
-          if (!p.hl) return <span key={p.key}>{p.value}</span>
-          const cats = p.hl.categories ?? []
-          const bg = gradientFor(cats, colors)
-          const isSelected = selected?.start === p.hl.start && selected?.end === p.hl.end
+          if (p.kind === 'text') return <span key={p.key}>{p.value}</span>
+
+          const cats = p.highlight?.categories ?? []
+          const bg = p.highlight ? gradientFor(cats, colors) : 'transparent'
+          const isSelected = selected?.start === p.start && selected?.end === p.end
+          const title = p.highlight ? `${p.value} — ${cats.join(', ')}` : `${p.value} — not accepted`
           return (
             <button
               key={p.key}
               type="button"
-              className={`hl hl--button${isSelected ? ' hl--selected' : ''}`}
+              className={`hl hl--button${isSelected ? ' hl--selected' : ''}${p.highlight ? '' : ' hl--plain'}`}
               style={{ background: bg }}
-              title={`${p.value} — ${cats.join(', ')}`}
-              onClick={() => onSelectHighlight?.(p.hl!)}
+              title={title}
+              onClick={() =>
+                onSelectToken?.({
+                  original: p.value,
+                  lower: p.value.toLowerCase(),
+                  start: p.start,
+                  end: p.end,
+                  highlight: p.highlight,
+                })
+              }
             >
               {p.value}
             </button>

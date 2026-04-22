@@ -3,22 +3,35 @@ import { Link } from 'react-router-dom'
 import { AcceptedByCategory } from '../components/AcceptedByCategory'
 import { HighlightedText } from '../components/HighlightedText'
 import { SummaryCards } from '../components/SummaryCards'
-import type { AnalysisResult, CategoryColorMap, Highlight, TraceStep } from '../types'
+import { TraceGraphviz } from '../components/TraceGraphviz'
+import type { AnalysisResult, CategoryColorMap, SelectedToken, TraceStep } from '../types'
 
 type Props = {
   result: AnalysisResult | null
   colors: CategoryColorMap
 }
 
+const API_BASE = 'http://127.0.0.1:8000'
+
 export function ResultsPage({ result, colors }: Props) {
   const categories = Object.keys(colors)
-  const [selected, setSelected] = useState<Highlight | null>(null)
+  const [selected, setSelected] = useState<SelectedToken | null>(null)
   const [traceOpen, setTraceOpen] = useState(false)
 
   const effectiveSelected = useMemo(() => {
     if (!result) return null
     if (selected) return selected
-    return result.highlights?.[0] ?? null
+    const h = result.highlights?.[0]
+    if (!h) return null
+    return {
+      original: h.original,
+      lower: h.lower,
+      start: h.start,
+      end: h.end,
+      categories: h.categories ?? [],
+      accepted: true,
+      trace: h.trace ?? [],
+    }
   }, [result, selected])
 
   const traceSteps: TraceStep[] = effectiveSelected?.trace ?? []
@@ -81,9 +94,55 @@ export function ResultsPage({ result, colors }: Props) {
                 highlights={result.highlights}
                 colors={colors}
                 selected={effectiveSelected}
-                onSelectHighlight={(h) => {
-                  setSelected(h)
-                  setTraceOpen(true)
+                onSelectToken={async (t) => {
+                  // If the clicked token is already an accepted highlight, we already have trace.
+                  if (t.highlight) {
+                    setSelected({
+                      original: t.highlight.original,
+                      lower: t.highlight.lower,
+                      start: t.highlight.start,
+                      end: t.highlight.end,
+                      categories: t.highlight.categories ?? [],
+                      accepted: true,
+                      trace: t.highlight.trace ?? [],
+                    })
+                    setTraceOpen(true)
+                    return
+                  }
+
+                  // Otherwise, fetch a DFA trace for this word from the API.
+                  try {
+                    const res = await fetch(`${API_BASE}/trace?word=${encodeURIComponent(t.lower)}`)
+                    if (!res.ok) throw new Error(`Trace request failed: ${res.status}`)
+                    const payload = (await res.json()) as {
+                      original: string
+                      lower: string
+                      accepted: boolean
+                      categories: string[]
+                      trace: TraceStep[]
+                    }
+                    setSelected({
+                      original: t.original,
+                      lower: payload.lower,
+                      start: t.start,
+                      end: t.end,
+                      categories: payload.categories ?? [],
+                      accepted: Boolean(payload.accepted),
+                      trace: payload.trace ?? [],
+                    })
+                    setTraceOpen(true)
+                  } catch {
+                    setSelected({
+                      original: t.original,
+                      lower: t.lower,
+                      start: t.start,
+                      end: t.end,
+                      categories: [],
+                      accepted: false,
+                      trace: [],
+                    })
+                    setTraceOpen(true)
+                  }
                 }}
               />
               <div className="legend legend--inline">
@@ -140,7 +199,7 @@ export function ResultsPage({ result, colors }: Props) {
               </span>
               <span className="pill">
                 <span className="muted">Categories</span>
-                <span>{(effectiveSelected.categories ?? []).join(', ')}</span>
+                <span>{(effectiveSelected.categories ?? []).length ? (effectiveSelected.categories ?? []).join(', ') : '—'}</span>
               </span>
               <span className="pill">
                 <span className="muted">Steps</span>
@@ -151,39 +210,54 @@ export function ResultsPage({ result, colors }: Props) {
             {traceSteps.length === 0 ? (
               <div className="empty">No trace available for this token.</div>
             ) : (
-              <div className="traceTable" role="table" aria-label="DFA trace table">
-                <div className="traceTable__head" role="row">
-                  <div role="columnheader">Step</div>
-                  <div role="columnheader">Char</div>
-                  <div role="columnheader">From</div>
-                  <div role="columnheader">To</div>
-                  <div role="columnheader">Note</div>
+              <>
+                <div className="traceGraphWrap">
+                  <div className="traceGraphHeader">
+                    <div className="traceGraphTitle">Per-token subgraph</div>
+                    <div className="muted">Edges are taken directly from the trace below.</div>
+                  </div>
+                  <TraceGraphviz traceSteps={traceSteps} />
+                  <div className="traceLegend">
+                    <span className="legendPill legendPill--blue">Transition</span>
+                    <span className="legendPill legendPill--green">Visited state</span>
+                    <span className="legendPill legendPill--red">TRAP</span>
+                  </div>
                 </div>
-                {traceSteps.map((s, idx) => {
-                  const fromLbl = `q${s.from}`
-                  const toLbl = s.trap ? 'TRAP' : `q${s.to}`
-                  const note = s.trap ? 'Entering trap state — processing terminated' : ''
-                  return (
-                    <div key={`${idx}:${s.ch}:${s.from}:${s.to}`} className="traceTable__row" role="row">
-                      <div className="mono" role="cell">
-                        {idx + 1}
+
+                <div className="traceTable" role="table" aria-label="DFA trace table">
+                  <div className="traceTable__head" role="row">
+                    <div role="columnheader">Step</div>
+                    <div role="columnheader">Char</div>
+                    <div role="columnheader">From</div>
+                    <div role="columnheader">To</div>
+                    <div role="columnheader">Note</div>
+                  </div>
+                  {traceSteps.map((s, idx) => {
+                    const fromLbl = `q${s.from}`
+                    const toLbl = s.trap ? 'TRAP' : `q${s.to}`
+                    const note = s.trap ? 'Entering trap state — processing terminated' : ''
+                    return (
+                      <div key={`${idx}:${s.ch}:${s.from}:${s.to}`} className="traceTable__row" role="row">
+                        <div className="mono" role="cell">
+                          {idx + 1}
+                        </div>
+                        <div className="mono" role="cell">
+                          '{s.ch}'
+                        </div>
+                        <div className="mono" role="cell">
+                          {fromLbl}
+                        </div>
+                        <div className="mono" role="cell">
+                          {toLbl}
+                        </div>
+                        <div className={s.trap ? 'traceNote traceNote--trap' : 'traceNote'} role="cell">
+                          {note || '—'}
+                        </div>
                       </div>
-                      <div className="mono" role="cell">
-                        '{s.ch}'
-                      </div>
-                      <div className="mono" role="cell">
-                        {fromLbl}
-                      </div>
-                      <div className="mono" role="cell">
-                        {toLbl}
-                      </div>
-                      <div className={s.trap ? 'traceNote traceNote--trap' : 'traceNote'} role="cell">
-                        {note || '—'}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+                    )
+                  })}
+                </div>
+              </>
             )}
           </div>
         </div>
