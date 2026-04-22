@@ -4,6 +4,8 @@ type Props = {
   text: string
   highlights: Highlight[]
   colors: CategoryColorMap
+  selected?: Highlight | null
+  onSelectHighlight?: (h: Highlight) => void
 }
 
 function gradientFor(categories: string[], colors: CategoryColorMap): string {
@@ -21,7 +23,7 @@ function gradientFor(categories: string[], colors: CategoryColorMap): string {
   return `linear-gradient(90deg, ${stops})`
 }
 
-export function HighlightedText({ text, highlights, colors }: Props) {
+export function HighlightedText({ text, highlights, colors, selected = null, onSelectHighlight }: Props) {
   if (!text) return <div className="muted">No text.</div>
 
   const parts: Array<{ key: string; value: string; hl?: Highlight }> = []
@@ -42,15 +44,18 @@ export function HighlightedText({ text, highlights, colors }: Props) {
           if (!p.hl) return <span key={p.key}>{p.value}</span>
           const cats = p.hl.categories ?? []
           const bg = gradientFor(cats, colors)
+          const isSelected = selected?.start === p.hl.start && selected?.end === p.hl.end
           return (
-            <span
+            <button
               key={p.key}
-              className="hl"
+              type="button"
+              className={`hl hl--button${isSelected ? ' hl--selected' : ''}`}
               style={{ background: bg }}
               title={`${p.value} — ${cats.join(', ')}`}
+              onClick={() => onSelectHighlight?.(p.hl!)}
             >
               {p.value}
-            </span>
+            </button>
           )
         })}
       </div>

@@ -14,6 +14,14 @@ export type Highlight = {
   original: string
   lower: string
   categories: string[]
+  trace?: TraceStep[]
+}
+
+export type TraceStep = {
+  ch: string
+  from: number
+  to: number
+  trap: boolean
 }
 
 export type AcceptedItem = {

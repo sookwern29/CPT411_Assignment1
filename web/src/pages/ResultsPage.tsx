@@ -1,8 +1,9 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AcceptedByCategory } from '../components/AcceptedByCategory'
 import { HighlightedText } from '../components/HighlightedText'
 import { SummaryCards } from '../components/SummaryCards'
-import type { AnalysisResult, CategoryColorMap } from '../types'
+import type { AnalysisResult, CategoryColorMap, Highlight, TraceStep } from '../types'
 
 type Props = {
   result: AnalysisResult | null
@@ -11,6 +12,25 @@ type Props = {
 
 export function ResultsPage({ result, colors }: Props) {
   const categories = Object.keys(colors)
+  const [selected, setSelected] = useState<Highlight | null>(null)
+  const [traceOpen, setTraceOpen] = useState(false)
+
+  const effectiveSelected = useMemo(() => {
+    if (!result) return null
+    if (selected) return selected
+    return result.highlights?.[0] ?? null
+  }, [result, selected])
+
+  const traceSteps: TraceStep[] = effectiveSelected?.trace ?? []
+
+  useEffect(() => {
+    if (!traceOpen) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setTraceOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [traceOpen])
 
   return (
     <div className="app">
@@ -56,7 +76,16 @@ export function ResultsPage({ result, colors }: Props) {
           <h2 className="card__title">Highlighted text</h2>
           {result ? (
             <>
-              <HighlightedText text={result.text} highlights={result.highlights} colors={colors} />
+              <HighlightedText
+                text={result.text}
+                highlights={result.highlights}
+                colors={colors}
+                selected={effectiveSelected}
+                onSelectHighlight={(h) => {
+                  setSelected(h)
+                  setTraceOpen(true)
+                }}
+              />
               <div className="legend legend--inline">
                 <div className="legend__title">Legend</div>
                 <div className="legendGrid">
@@ -76,6 +105,89 @@ export function ResultsPage({ result, colors }: Props) {
           )}
         </section>
       </main>
+
+      {result && effectiveSelected && traceOpen ? (
+        <div
+          className="modalOverlay"
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setTraceOpen(false)
+          }}
+        >
+          <div className="modal" role="dialog" aria-modal="true" aria-label="DFA trace details">
+            <div className="modalHeader">
+              <div>
+                <div className="modalTitle">DFA Trace</div>
+                <div className="modalSub muted">Press Esc or click outside to close.</div>
+              </div>
+              <button type="button" className="btn btn--secondary" onClick={() => setTraceOpen(false)}>
+                Close
+              </button>
+            </div>
+
+            <div className="traceMeta">
+              <span className="pill">
+                <span className="muted">Token</span>
+                <span className="mono">
+                  {effectiveSelected.original} ({effectiveSelected.lower})
+                </span>
+              </span>
+              <span className="pill">
+                <span className="muted">Position</span>
+                <span className="mono">
+                  {effectiveSelected.start}–{effectiveSelected.end - 1}
+                </span>
+              </span>
+              <span className="pill">
+                <span className="muted">Categories</span>
+                <span>{(effectiveSelected.categories ?? []).join(', ')}</span>
+              </span>
+              <span className="pill">
+                <span className="muted">Steps</span>
+                <span className="mono">{traceSteps.length}</span>
+              </span>
+            </div>
+
+            {traceSteps.length === 0 ? (
+              <div className="empty">No trace available for this token.</div>
+            ) : (
+              <div className="traceTable" role="table" aria-label="DFA trace table">
+                <div className="traceTable__head" role="row">
+                  <div role="columnheader">Step</div>
+                  <div role="columnheader">Char</div>
+                  <div role="columnheader">From</div>
+                  <div role="columnheader">To</div>
+                  <div role="columnheader">Note</div>
+                </div>
+                {traceSteps.map((s, idx) => {
+                  const fromLbl = `q${s.from}`
+                  const toLbl = s.trap ? 'TRAP' : `q${s.to}`
+                  const note = s.trap ? 'Entering trap state — processing terminated' : ''
+                  return (
+                    <div key={`${idx}:${s.ch}:${s.from}:${s.to}`} className="traceTable__row" role="row">
+                      <div className="mono" role="cell">
+                        {idx + 1}
+                      </div>
+                      <div className="mono" role="cell">
+                        '{s.ch}'
+                      </div>
+                      <div className="mono" role="cell">
+                        {fromLbl}
+                      </div>
+                      <div className="mono" role="cell">
+                        {toLbl}
+                      </div>
+                      <div className={s.trap ? 'traceNote traceNote--trap' : 'traceNote'} role="cell">
+                        {note || '—'}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

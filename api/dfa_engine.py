@@ -75,20 +75,23 @@ def analyze_text(text: str) -> Dict[str, Any]:
 
     all_tokens, findings = _MOD.scan_text(_DFA, text)
 
-    highlights: List[Highlight] = []
+    highlight_payloads: List[Dict[str, Any]] = []
     for original, start, end, cats, acc in findings:
         if not acc:
             continue
-        highlights.append(
-            Highlight(
-                start=int(start),
-                end=int(end),
-                original=str(original),
-                lower=str(original).lower(),
-                categories=list(cats),
-            )
+        lower = str(original).lower()
+        steps = _DFA.trace(lower)
+        trace = [{"ch": ch, "from": frm, "to": to, "trap": bool(trap)} for (ch, frm, to, trap) in steps]
+
+        h = Highlight(
+            start=int(start),
+            end=int(end),
+            original=str(original),
+            lower=lower,
+            categories=list(cats),
         )
-    highlights.sort(key=lambda h: h.start)
+        highlight_payloads.append({**h.__dict__, "trace": trace})
+    highlight_payloads.sort(key=lambda h: int(h["start"]))
 
     word_counts = _word_frequency_from_findings(findings)
     accepted_by_cat = _accepted_by_category(word_counts)
@@ -106,7 +109,7 @@ def analyze_text(text: str) -> Dict[str, Any]:
         "categoryTokenCounts": cat_counts,
         "acceptedWordCounts": word_counts,
         "acceptedByCategory": accepted_by_cat,
-        "highlights": [h.__dict__ for h in highlights],
+        "highlights": highlight_payloads,
         "categories": list(_MOD.CLOSED_CLASS.keys()),
     }
 
