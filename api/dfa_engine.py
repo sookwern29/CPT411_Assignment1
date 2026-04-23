@@ -65,6 +65,129 @@ def trace_word(word: str) -> Dict[str, Any]:
     }
 
 
+def full_dfa_trace(word: str) -> Dict[str, Any]:
+    """
+    Return the complete DFA (all states and transitions) together with
+    the trace path for `word`, so the frontend can render the full 413-node
+    graph with the trace highlighted.
+    """
+    if word is None:
+        word = ""
+    original = str(word)
+    lower = original.lower()
+
+    # Walk the trace
+    trace_states: List[int] = [0]
+    trace_edges: List[Dict[str, Any]] = []
+    state = 0
+    hit_trap = False
+
+    for ch in lower:
+        key = (state, ch)
+        if key in _DFA.transitions:
+            nxt = _DFA.transitions[key]
+            trace_edges.append({"from": state, "to": nxt, "ch": ch})
+            trace_states.append(nxt)
+            state = nxt
+        else:
+            trace_edges.append({"from": state, "to": -1, "ch": ch})
+            trace_states.append(-1)
+            hit_trap = True
+            break
+
+    # All DFA transitions
+    all_transitions = [
+        {"from": f, "to": t, "ch": c}
+        for (f, c), t in _DFA.transitions.items()
+    ]
+
+    # Accept state mapping  state_id -> word
+    accept_info: Dict[str, str] = {str(s): w for s, w in _DFA.accept_states.items()}
+
+    accepted, _ = _DFA.run(lower)
+
+    return {
+        "word": lower,
+        "original": original,
+        "accepted": bool(accepted),
+        "hit_trap": hit_trap,
+        "num_states": _DFA.num_states,
+        "trace_states": trace_states,
+        "trace_edges": trace_edges,
+        "all_transitions": all_transitions,
+        "accept_info": accept_info,
+    }
+
+
+def subgraph_word(word: str) -> Dict[str, Any]:
+    """
+    Return a focused subgraph of the DFA centred on the trace path for `word`.
+
+    For every state visited on the trace path we collect ALL outgoing
+    transitions (not just the one taken), giving the caller enough data
+    to render the full DFA neighbourhood around the trace.
+    """
+    if word is None:
+        word = ""
+    original = str(word)
+    lower = original.lower()
+
+    # ── Walk the DFA and record the trace ──────────────────────────────────
+    trace_states: List[int] = [0]          # q0 is always first
+    trace_edges: List[Dict[str, Any]] = []
+    state = 0
+    hit_trap = False
+
+    for ch in lower:
+        key = (state, ch)
+        if key in _DFA.transitions:
+            nxt = _DFA.transitions[key]
+            trace_edges.append({"from": state, "to": nxt, "ch": ch})
+            trace_states.append(nxt)
+            state = nxt
+        else:
+            trace_edges.append({"from": state, "to": -1, "ch": ch})
+            trace_states.append(-1)
+            hit_trap = True
+            break
+
+    trace_state_set = set(s for s in trace_states if s != -1)
+    trace_edge_keys = {(e["from"], e["ch"]) for e in trace_edges}
+
+    # ── Sibling (context) transitions from every trace state ───────────────
+    context_edges: List[Dict[str, Any]] = []
+    context_node_set: set = set()
+
+    for (from_s, ch), to_s in _DFA.transitions.items():
+        if from_s not in trace_state_set:
+            continue
+        if (from_s, ch) in trace_edge_keys:
+            continue                         # already in the trace path
+        context_edges.append({"from": from_s, "to": to_s, "ch": ch})
+        context_node_set.add(to_s)
+
+    # ── Accept-state labels for every node in the subgraph ─────────────────
+    all_nodes = trace_state_set | context_node_set
+    accept_info: Dict[str, str] = {
+        str(s): _DFA.accept_states[s]
+        for s in all_nodes
+        if s in _DFA.accept_states
+    }
+
+    accepted, _ = _DFA.run(lower)
+
+    return {
+        "word": lower,
+        "original": original,
+        "accepted": bool(accepted),
+        "hit_trap": hit_trap,
+        "trace_states": trace_states,
+        "trace_edges": trace_edges,
+        "context_edges": context_edges,
+        "accept_info": accept_info,
+    }
+
+
 def _word_frequency_from_findings(findings: List[Tuple]) -> Dict[str, Dict[str, Any]]:
     freq: Dict[str, Dict[str, Any]] = {}
     for original, _start, _end, cats, _acc in findings:

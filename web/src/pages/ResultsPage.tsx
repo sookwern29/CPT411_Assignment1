@@ -4,6 +4,7 @@ import { AcceptedByCategory } from '../components/AcceptedByCategory'
 import { HighlightedText } from '../components/HighlightedText'
 import { SummaryCards } from '../components/SummaryCards'
 import { TraceGraphviz } from '../components/TraceGraphviz'
+import { TraceSubgraph } from '../components/TraceSubgraph'
 import type { AnalysisResult, CategoryColorMap, SelectedToken, TraceStep } from '../types'
 
 type Props = {
@@ -17,6 +18,7 @@ export function ResultsPage({ result, colors }: Props) {
   const categories = Object.keys(colors)
   const [selected, setSelected] = useState<SelectedToken | null>(null)
   const [traceOpen, setTraceOpen] = useState(false)
+  const [traceView, setTraceView] = useState<'graph' | 'subgraph'>('subgraph')
 
   const effectiveSelected = useMemo(() => {
     if (!result) return null
@@ -173,7 +175,7 @@ export function ResultsPage({ result, colors }: Props) {
             if (e.target === e.currentTarget) setTraceOpen(false)
           }}
         >
-          <div className="modal" role="dialog" aria-modal="true" aria-label="DFA trace details">
+          <div className="modal modal--fullDFA" role="dialog" aria-modal="true" aria-label="DFA trace details">
             <div className="modalHeader">
               <div>
                 <div className="modalTitle">DFA Trace</div>
@@ -210,54 +212,72 @@ export function ResultsPage({ result, colors }: Props) {
             {traceSteps.length === 0 ? (
               <div className="empty">No trace available for this token.</div>
             ) : (
-              <>
-                <div className="traceGraphWrap">
-                  <div className="traceGraphHeader">
-                    <div className="traceGraphTitle">Per-token subgraph</div>
-                    <div className="muted">Edges are taken directly from the trace below.</div>
-                  </div>
-                  <TraceGraphviz traceSteps={traceSteps} />
-                  <div className="traceLegend">
-                    <span className="legendPill legendPill--blue">Transition</span>
-                    <span className="legendPill legendPill--green">Visited state</span>
-                    <span className="legendPill legendPill--red">TRAP</span>
-                  </div>
+              <div className='traceTabBody traceTabBody--full'>
+                <div className="traceTabs">
+                  <button
+                    type="button"
+                    className={`traceTab${traceView === 'subgraph' ? ' traceTab--active' : ''}`}
+                    onClick={() => setTraceView('subgraph')}
+                  >
+                    Full DFA
+                  </button>
+                  <button
+                    type="button"
+                    className={`traceTab${traceView === 'graph' ? ' traceTab--active' : ''}`}
+                    onClick={() => setTraceView('graph')}
+                  >
+                    Graph
+                  </button>
                 </div>
 
-                <div className="traceTable" role="table" aria-label="DFA trace table">
-                  <div className="traceTable__head" role="row">
-                    <div role="columnheader">Step</div>
-                    <div role="columnheader">Char</div>
-                    <div role="columnheader">From</div>
-                    <div role="columnheader">To</div>
-                    <div role="columnheader">Note</div>
-                  </div>
-                  {traceSteps.map((s, idx) => {
-                    const fromLbl = `q${s.from}`
-                    const toLbl = s.trap ? 'TRAP' : `q${s.to}`
-                    const note = s.trap ? 'Entering trap state — processing terminated' : ''
-                    return (
-                      <div key={`${idx}:${s.ch}:${s.from}:${s.to}`} className="traceTable__row" role="row">
-                        <div className="mono" role="cell">
-                          {idx + 1}
-                        </div>
-                        <div className="mono" role="cell">
-                          '{s.ch}'
-                        </div>
-                        <div className="mono" role="cell">
-                          {fromLbl}
-                        </div>
-                        <div className="mono" role="cell">
-                          {toLbl}
-                        </div>
-                        <div className={s.trap ? 'traceNote traceNote--trap' : 'traceNote'} role="cell">
-                          {note || '—'}
-                        </div>
+                {traceView === 'subgraph' ? (
+                  <TraceSubgraph
+                    key={effectiveSelected?.lower}
+                    word={effectiveSelected?.lower ?? ''}
+                  />
+                ) : (
+                  <>
+                    <div className="traceGraphWrap">
+                      <div className="traceGraphHeader">
+                        <div className="traceGraphTitle">Per-token subgraph</div>
+                        <div className="muted">Edges are taken directly from the trace below.</div>
                       </div>
-                    )
-                  })}
-                </div>
-              </>
+                      <TraceGraphviz traceSteps={traceSteps} accepted={effectiveSelected?.accepted ?? false} />
+                      <div className="traceLegend">
+                        <span className="legendPill legendPill--blue">Transition</span>
+                        <span className="legendPill legendPill--green">Visited state</span>
+                        <span className="legendPill legendPill--red">TRAP</span>
+                      </div>
+                    </div>
+
+                    <div className="traceTable" role="table" aria-label="DFA trace table">
+                      <div className="traceTable__head" role="row">
+                        <div role="columnheader">Step</div>
+                        <div role="columnheader">Char</div>
+                        <div role="columnheader">From</div>
+                        <div role="columnheader">To</div>
+                        <div role="columnheader">Note</div>
+                      </div>
+                      {traceSteps.map((s, idx) => {
+                        const fromLbl = `q${s.from}`
+                        const toLbl = s.trap ? 'TRAP' : `q${s.to}`
+                        const note = s.trap ? 'Entering trap state — processing terminated' : ''
+                        return (
+                          <div key={`${idx}:${s.ch}:${s.from}:${s.to}`} className="traceTable__row" role="row">
+                            <div className="mono" role="cell">{idx + 1}</div>
+                            <div className="mono" role="cell">'{s.ch}'</div>
+                            <div className="mono" role="cell">{fromLbl}</div>
+                            <div className="mono" role="cell">{toLbl}</div>
+                            <div className={s.trap ? 'traceNote traceNote--trap' : 'traceNote'} role="cell">
+                              {note || '—'}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>

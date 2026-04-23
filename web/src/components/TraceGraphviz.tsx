@@ -6,7 +6,7 @@ function escapeDotLabel(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
-function dotForTrace(traceSteps: TraceStep[]): string {
+function dotForTrace(traceSteps: TraceStep[], accepted: boolean): string {
   const lines: string[] = []
   lines.push('digraph DFAPath {')
   lines.push('  rankdir=LR;')
@@ -19,17 +19,32 @@ function dotForTrace(traceSteps: TraceStep[]): string {
 
   lines.push('  q0 [label="q0\\n(start)", fillcolor="#e0f2fe", color="#0284c7"];')
 
-  for (const s of traceSteps) {
+  for (let i = 0; i < traceSteps.length; i++) {
+    const s = traceSteps[i]
     const from = `q${s.from}`
-    const to = s.trap ? 'TRAP' : `q${s.to}`
+    const isTrap = s.trap || s.to === -1
+    const to = isTrap ? 'TRAP' : `q${s.to}`
+    const isLast = i === traceSteps.length - 1
 
-    if (s.trap) {
-      lines.push('  TRAP [shape=octagon, style="filled", fillcolor="#ffe4e6", color="#e11d48", fontcolor="#9f1239"];')
+    if (isTrap) {
+      lines.push('  TRAP [shape=octagon, style="filled", fillcolor="#ffe4e6", color="#e11d48", fontcolor="#9f1239", penwidth=2];')
+      lines.push(`  ${from} [fillcolor="#2563eb", color="#1d4ed8", fontcolor="white", style="rounded,filled"];`)
       lines.push(`  ${from} -> TRAP [label="${escapeDotLabel(s.ch)}", color="#e11d48", fontcolor="#e11d48", penwidth=2];`)
       break
     }
 
-    lines.push(`  ${to} [label="${to}", fillcolor="#ecfdf5", color="#10b981"];`)
+    if (isLast) {
+      // Final state: accept → double ring; reject → orange/amber
+      if (accepted) {
+        lines.push(`  ${to} [label="${to}", fillcolor="#dcfce7", color="#16a34a", penwidth=2.5, style="rounded,filled"];`)
+        // Simulate double ring with a peripheries attribute
+        lines.push(`  ${to} [peripheries=2];`)
+      } else {
+        lines.push(`  ${to} [label="${to}", fillcolor="#fef3c7", color="#d97706", fontcolor="#92400e", penwidth=2, style="rounded,filled"];`)
+      }
+    } else {
+      lines.push(`  ${to} [label="${to}", fillcolor="#ecfdf5", color="#10b981"];`)
+    }
     lines.push(`  ${from} -> ${to} [label="${escapeDotLabel(s.ch)}"];`)
   }
 
@@ -37,8 +52,8 @@ function dotForTrace(traceSteps: TraceStep[]): string {
   return lines.join('\n')
 }
 
-export function TraceGraphviz({ traceSteps }: { traceSteps: TraceStep[] }) {
-  const dot = useMemo(() => dotForTrace(traceSteps), [traceSteps])
+export function TraceGraphviz({ traceSteps, accepted }: { traceSteps: TraceStep[]; accepted: boolean }) {
+  const dot = useMemo(() => dotForTrace(traceSteps, accepted), [traceSteps, accepted])
   const [svg, setSvg] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 

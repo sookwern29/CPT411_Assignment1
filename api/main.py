@@ -6,7 +6,7 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from dfa_engine import analyze_text, trace_word
+from dfa_engine import analyze_text, full_dfa_trace, subgraph_word, trace_word
 
 
 class AnalyzeRequest(BaseModel):
@@ -61,4 +61,18 @@ def trace(word: str) -> Any:
     if not isinstance(word, str) or word.strip() == "":
         raise HTTPException(status_code=400, detail='Provide query param ?word=...')
     return trace_word(word)
+
+
+@app.get("/subgraph")
+def subgraph(word: str) -> Any:
+    if not isinstance(word, str) or word.strip() == "":
+        raise HTTPException(status_code=400, detail='Provide query param ?word=...')
+    return subgraph_word(word)
+
+
+@app.get("/full_dfa")
+def full_dfa(word: str) -> Any:
+    if not isinstance(word, str) or word.strip() == "":
+        raise HTTPException(status_code=400, detail='Provide query param ?word=...')
+    return full_dfa_trace(word)
 
