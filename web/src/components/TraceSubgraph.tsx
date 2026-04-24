@@ -601,8 +601,6 @@ export function TraceSubgraph({ word }: { word: string }) {
           : 'reject'
       : 'current'
 
-  const statusColor = data?.accepted ? '#059669' : data?.hit_trap ? '#e11d48' : '#ca8a04'
-  const statusLabel = data?.accepted ? 'ACCEPT' : data?.hit_trap ? 'TRAP' : 'REJECT'
   const progressPct = totalSteps > 0 ? (step / totalSteps) * 100 : 0
 
   const togglePlay = () => {
@@ -617,7 +615,7 @@ export function TraceSubgraph({ word }: { word: string }) {
   return (
     <div className="traceFullDFA">
       {/* Stats */}
-      {data && (
+      {/* {data && (
         <div className="traceFullDFA__stats">
           <span className="pill">
             <span className="muted">States</span>
@@ -636,7 +634,7 @@ export function TraceSubgraph({ word }: { word: string }) {
             <span style={{ color: statusColor, fontWeight: 700 }}>{statusLabel}</span>
           </span>
         </div>
-      )}
+      )} */}
 
       {/* Word character display (synced with step) */}
       {data && (
@@ -648,9 +646,21 @@ export function TraceSubgraph({ word }: { word: string }) {
                 key={i}
                 className={[
                   'traceAnim__char',
-                  i === step - 1 ? 'traceAnim__char--active' : '',
-                  i < step - 1 ? 'traceAnim__char--done' : '',
-                  i === step ? 'traceAnim__char--next' : '',
+                  // Before final: normal stepping colours.
+                  !isFinished && i === step - 1 ? 'traceAnim__char--active' : '',
+                  !isFinished && i < step - 1 ? 'traceAnim__char--done' : '',
+                  !isFinished && i === step ? 'traceAnim__char--next' : '',
+
+                  // Final: keep already-consumed characters as done.
+                  isFinished && i < step - 1 ? 'traceAnim__char--done' : '',
+
+                  // Final: colour ONLY the deciding (active) character by outcome.
+                  isFinished && i === step - 1 && badgeVariant === 'accept'
+                    ? 'traceAnim__char--accepted'
+                    : '',
+                  isFinished && i === step - 1 && (badgeVariant === 'trap' || badgeVariant === 'reject')
+                    ? 'traceAnim__char--rejected'
+                    : '',
                 ]
                   .filter(Boolean)
                   .join(' ')}
@@ -660,86 +670,128 @@ export function TraceSubgraph({ word }: { word: string }) {
             ))}
           </div>
           <div className="traceAnim__stateLabel">
-            <span className="muted traceAnim__stateLabelKey">State</span>
-            <span className={`traceAnim__stateBadge traceAnim__stateBadge--${badgeVariant}`}>
-              {currentStateLbl}
-            </span>
+            {(playing || step > 0) && (
+              <>
+                <span className="muted traceAnim__stateLabelKey">State</span>
+                <span className={`traceAnim__stateBadge traceAnim__stateBadge--${badgeVariant}`}>
+                  {currentStateLbl}
+                </span>
+              </>
+            )}
+
+            {/* <span className="muted traceAnim__stateLabelKey">Result</span>
+            <span style={{ color: resultColor, fontWeight: 800 }}>
+              {resultLabel}
+            </span> */}
           </div>
         </div>
       )}
 
-      {/* Animation controls */}
-      {svg && data && (
-        <div className="traceAnim__controls">
-          <div className="traceAnim__btnGroup">
-            <button type="button" className="btn btn--secondary traceAnim__btn" onClick={reset} title="Reset">⏮</button>
-            <button type="button" className="btn btn--secondary traceAnim__btn" onClick={stepBack} disabled={step === 0} title="Step back">◀</button>
-            <button type="button" className="btn traceAnim__playBtn" onClick={togglePlay}>
-              {playing ? '⏸\u2009Pause' : isFinished ? '↺\u2009Replay' : '▶\u2009Play'}
-            </button>
-            <button type="button" className="btn btn--secondary traceAnim__btn" onClick={stepFwd} disabled={isFinished} title="Step forward">▶</button>
-          </div>
-          <div className="traceAnim__speedRow">
-            <span className="muted" style={{ fontSize: 12, flexShrink: 0 }}>Slow</span>
-            <input
-              type="range"
-              className="traceAnim__speedSlider"
-              min={200} max={2000} step={100}
-              value={2200 - speed}
-              onChange={(e) => setSpeed(2200 - Number(e.target.value))}
-              aria-label="Animation speed"
-            />
-            <span className="muted" style={{ fontSize: 12, flexShrink: 0 }}>Fast</span>
-          </div>
-          <div className="traceAnim__progress">
-            <div className="traceAnim__progressBar">
-              <div className="traceAnim__progressFill" style={{ width: `${progressPct}%` }} />
-            </div>
-            <span className="muted" style={{ fontSize: 12, minWidth: 52, textAlign: 'right' }}>
-              {step}{'\u202f'}/{'\u202f'}{totalSteps}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Pan/Zoom toolbar */}
+      {/* Unified controls row: playback + speed + pan/zoom */}
       {svg && (
-        <div className="traceFullDFA__toolbar">
-          <button type="button" className="btn btn--secondary traceFullDFA__toolBtn"
-            onClick={() => {
-              if (viewportRef.current) viewportRef.current.style.transition = 'transform 0.2s ease'
-              setTf((t) => ({ ...t, scale: Math.min(10, t.scale * 1.3) }))
-            }} title="Zoom in">+</button>
-          <button type="button" className="btn btn--secondary traceFullDFA__toolBtn"
-            onClick={() => {
-              if (viewportRef.current) viewportRef.current.style.transition = 'transform 0.2s ease'
-              setTf((t) => ({ ...t, scale: Math.max(0.05, t.scale * 0.77) }))
-            }} title="Zoom out">−</button>
-          <button type="button" className="btn btn--secondary traceFullDFA__toolBtn"
-            onClick={() => {
-              if (viewportRef.current) viewportRef.current.style.transition = 'transform 0.25s ease'
-              fitToScreen()
-            }} title="Fit to screen">Fit</button>
-          <button
-            type="button"
-            className={`btn traceFullDFA__toolBtn traceFullDFA__followBtn${followMode ? ' traceFullDFA__followBtn--on' : ''}`}
-            onClick={() => {
-              const next = !followMode
-              setFollowMode(next)
-              if (next) panToCurrentNode(step)
-            }}
-            title={followMode ? 'Auto-follow ON — click to disable' : 'Auto-follow OFF — click to enable'}
-          >
-            {followMode ? '⊙ Follow' : '○ Follow'}
-          </button>
-          <span className="muted traceFullDFA__scaleLabel">{Math.round(tf.scale * 100)}%</span>
-          <span className="muted traceFullDFA__hint">Scroll to zoom · Drag to pan</span>
+        <div className="traceFullDFA__controlsRow">
+          <div className="traceFullDFA__controlsLeft">
+            {data && (
+              <>
+                <div className="traceAnim__btnGroup">
+                  <button type="button" className="btn btn--secondary traceAnim__btn" onClick={reset} title="Reset">⏮</button>
+                  <button type="button" className="btn btn--secondary traceAnim__btn" onClick={stepBack} disabled={step === 0} title="Step back">◀</button>
+                  <button type="button" className="btn traceAnim__playBtn" onClick={togglePlay}>
+                    {playing ? '⏸\u2009Pause' : isFinished ? '↺\u2009Replay' : '▶\u2009Play'}
+                  </button>
+                  <button type="button" className="btn btn--secondary traceAnim__btn" onClick={stepFwd} disabled={isFinished} title="Step forward">▶</button>
+                </div>
+
+                <div className="traceAnim__speedRow">
+                  <span className="muted" style={{ fontSize: 12, flexShrink: 0 }}>Slow</span>
+                  <input
+                    type="range"
+                    className="traceAnim__speedSlider"
+                    min={200} max={2000} step={100}
+                    value={2200 - speed}
+                    onChange={(e) => setSpeed(2200 - Number(e.target.value))}
+                    aria-label="Animation speed"
+                  />
+                  <span className="muted" style={{ fontSize: 12, flexShrink: 0 }}>Fast</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="traceFullDFA__controlsRight">
+            <div className="traceFullDFA__zoomGroup">
+              <button type="button" className="btn btn--secondary traceFullDFA__toolBtn"
+                onClick={() => {
+                  if (viewportRef.current) viewportRef.current.style.transition = 'transform 0.2s ease'
+                  setTf((t) => ({ ...t, scale: Math.min(10, t.scale * 1.3) }))
+                }} title="Zoom in">+</button>
+              <button type="button" className="btn btn--secondary traceFullDFA__toolBtn"
+                onClick={() => {
+                  if (viewportRef.current) viewportRef.current.style.transition = 'transform 0.2s ease'
+                  setTf((t) => ({ ...t, scale: Math.max(0.05, t.scale * 0.77) }))
+                }} title="Zoom out">−</button>
+              <button type="button" className="btn btn--secondary traceFullDFA__toolBtn"
+                onClick={() => {
+                  if (viewportRef.current) viewportRef.current.style.transition = 'transform 0.25s ease'
+                  fitToScreen()
+                }} title="Fit to screen">Fit</button>
+            </div>
+
+            <div className="traceFullDFA__followGroup">
+              <button
+                type="button"
+                className={`btn traceFullDFA__toolBtn traceFullDFA__followBtn${followMode ? ' traceFullDFA__followBtn--on' : ''}`}
+                onClick={() => {
+                  const next = !followMode
+                  setFollowMode(next)
+                  if (next) panToCurrentNode(step)
+                }}
+                title={followMode ? 'Auto-follow ON — click to disable' : 'Auto-follow OFF — click to enable'}
+              >
+                {followMode ? '⊙ Follow' : '○ Follow'}
+              </button>
+              <span className="muted traceFullDFA__scaleLabel">{Math.round(tf.scale * 100)}%</span>
+              <span className="muted traceFullDFA__hint">Scroll to zoom · Drag to pan</span>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Canvas — wrapper gives flex-allocated height; canvas fills it absolutely so the
-           SVG viewport (position:absolute + CSS transform) cannot escape the clip region */}
+      {/* Canvas — wrapper gives flex-allocated height; canvas fills remaining space so the
+           SVG viewport (CSS transform) cannot escape the clip region */}
       <div className="traceFullDFA__canvasWrap">
+        {data && (
+          <div className="traceFullDFA__canvasHeader">
+            <div className="traceFullDFA__canvasHeaderTitle">Closed-class DFA Model</div>
+            <details className="traceFullDFA__infoDetails">
+              <summary
+                className="traceFullDFA__canvasHeaderIconBtn"
+                title="Overall DFA info"
+                aria-label="Overall DFA info"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 17v-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M12 8.5h.01" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  <path
+                    d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10Z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
+                </svg>
+              </summary>
+              <div className="traceFullDFA__infoPopover">
+                <div className="traceAnim__dfaDetailsRow">
+                  <span className="muted">Total States</span>
+                  <span className="mono">{data.num_states}</span>
+                </div>
+                <div className="traceAnim__dfaDetailsRow">
+                  <span className="muted">Total Transitions</span>
+                  <span className="mono">{data.all_transitions.length}</span>
+                </div>
+              </div>
+            </details>
+          </div>
+        )}
       <div
         ref={containerRef}
         className="traceFullDFA__canvas"
@@ -767,6 +819,17 @@ export function TraceSubgraph({ word }: { word: string }) {
             display: svg ? 'block' : 'none',
           }}
         />
+
+        {svg && data && (
+          <div className="traceFullDFA__progressFooter">
+            <div className="traceAnim__progressBar">
+              <div className="traceAnim__progressFill" style={{ width: `${progressPct}%` }} />
+            </div>
+            <span className="muted traceFullDFA__progressText">
+              {step}{'\u202f'}/{'\u202f'}{totalSteps}
+            </span>
+          </div>
+        )}
       </div>
       </div>
 

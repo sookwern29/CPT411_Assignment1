@@ -533,10 +533,6 @@ code,
   flex-shrink: 0;
 }
 
-.traceTabBody {
-  /* normal tabs: no special sizing */
-}
-
 .traceTabBody--full {
   flex: 1;
   min-height: 0;
@@ -828,8 +824,8 @@ code,
   gap: 12px;
   flex-wrap: wrap;
   padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
+  /* border-radius: 12px; */
+  border: none;
   background: #f8f9ff;
   flex-shrink: 0;
   position: relative;
@@ -884,6 +880,24 @@ code,
   background: rgba(16, 185, 129, 0.10);
   border-color: rgba(16, 185, 129, 0.28);
   color: rgba(5, 90, 60, 0.75);
+}
+
+.traceAnim__char--accepted {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.55);
+  color: #065f46;
+  font-weight: 900;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+  transform: scale(1.12);
+}
+
+.traceAnim__char--rejected {
+  background: rgba(225, 29, 72, 0.10);
+  border-color: rgba(225, 29, 72, 0.30);
+  color: rgba(159, 18, 57, 0.95);
+  font-weight: 900;
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12);
+  transform: scale(1.12);
 }
 
 .traceAnim__stateLabel {
@@ -1251,6 +1265,46 @@ code,
   padding: 4px 0;
 }
 
+/* Unified controls row (TraceSubgraph) */
+.traceFullDFA__controlsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  background: #f8f9ff;
+  padding: 4px 0;
+}
+
+.traceFullDFA__controlsLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: min(520px, 100%);
+  flex-wrap: wrap;
+}
+
+.traceFullDFA__controlsRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.traceFullDFA__zoomGroup,
+.traceFullDFA__followGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .traceFullDFA__toolBtn {
   min-width: 36px;
   justify-content: center;
@@ -1268,6 +1322,89 @@ code,
 .traceFullDFA__hint {
   font-size: 12px;
   margin-left: 4px;
+}
+
+/* Header box above full DFA canvas */
+.traceFullDFA__canvasHeader {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.10);
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 14px 14px 0 0;
+}
+
+.traceFullDFA__canvasHeaderTitle {
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: 0.1px;
+}
+
+.traceFullDFA__infoDetails {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.traceFullDFA__canvasHeaderIconBtn {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  color: rgba(37, 99, 235, 0.95);
+  cursor: pointer;
+}
+
+.traceFullDFA__canvasHeaderIconBtn::-webkit-details-marker {
+  display: none;
+}
+
+.traceFullDFA__canvasHeaderIconBtn:hover {
+  filter: brightness(0.98);
+}
+
+.traceFullDFA__canvasHeaderIconBtn:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.75);
+  outline-offset: 2px;
+}
+
+.traceFullDFA__canvasHeaderIconBtn svg {
+  display: block;
+}
+
+.traceFullDFA__infoPopover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 260px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 40px rgba(2, 6, 23, 0.18);
+  padding: 10px;
+  z-index: 5;
+}
+
+.traceFullDFA__infoPopover .traceAnim__dfaDetailsRow {
+  padding: 6px 6px;
+  justify-content: flex-start;
+  gap: 0;
+}
+
+.traceFullDFA__infoPopover .traceAnim__dfaDetailsRow > :first-child {
+  min-width: 110px; /* keeps a consistent label/value gap */
+}
+
+.traceFullDFA__infoPopover .traceAnim__dfaDetailsRow > :last-child {
+  margin-left: 14px; /* explicit gap between key and value */
 }
 
 .traceFullDFA__followBtn {
@@ -1297,6 +1434,8 @@ code,
   min-height: 0;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(37, 99, 235, 0.04), rgba(255, 255, 255, 0.7));
@@ -1309,13 +1448,39 @@ code,
 /* Canvas: fills the wrapper exactly via inset:0 so its height is always the
    wrapper's flex-allocated height — never the SVG's natural 1356px height. */
 .traceFullDFA__canvas {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
+  padding-bottom: 44px; /* reserve space for bottom progress bar */
   contain: layout paint;
   isolation: isolate;
   user-select: none;
   cursor: grab;
+}
+
+.traceFullDFA__progressFooter {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-top: 1px solid rgba(15, 23, 42, 0.10);
+  background: rgba(255, 255, 255, 0.78);
+  flex-shrink: 0;
+}
+
+.traceFullDFA__progressFooter .traceAnim__progressBar {
+  flex: 1;
+}
+
+.traceFullDFA__progressText {
+  font-size: 12px;
+  min-width: 52px;
+  text-align: right;
 }
 
 .traceFullDFA__canvas:active {

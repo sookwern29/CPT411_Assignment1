@@ -207,6 +207,10 @@ export function ResultsPage({ result, colors }: Props) {
                 <span className="muted">Steps</span>
                 <span className="mono">{traceSteps.length}</span>
               </span>
+              <span className="pill">
+                <span className="muted">Result</span>
+                <span style={{ color: effectiveSelected.accepted ? '#059669' : '#e11d48', fontWeight: 700 }}>{effectiveSelected.accepted ? 'ACCEPT' : 'REJECT'}</span>
+              </span>
             </div>
 
             {traceSteps.length === 0 ? (
