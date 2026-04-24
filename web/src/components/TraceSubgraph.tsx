@@ -603,6 +603,8 @@ export function TraceSubgraph({ word }: { word: string }) {
 
   const progressPct = totalSteps > 0 ? (step / totalSteps) * 100 : 0
 
+  const totalAcceptingStates = data ? Object.keys(data.accept_info ?? {}).length : 0
+
   const togglePlay = () => {
     if (isFinished) { setStep(0); setPlaying(true) }
     else setPlaying((p) => !p)
@@ -787,6 +789,10 @@ export function TraceSubgraph({ word }: { word: string }) {
                 <div className="traceAnim__dfaDetailsRow">
                   <span className="muted">Total Transitions</span>
                   <span className="mono">{data.all_transitions.length}</span>
+                </div>
+                <div className="traceAnim__dfaDetailsRow">
+                  <span className="muted">Accepting States</span>
+                  <span className="mono">{totalAcceptingStates}</span>
                 </div>
               </div>
             </details>
